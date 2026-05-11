@@ -19,7 +19,7 @@ export default function Header({ page, onNavigate, search, onSearch }: HeaderPro
       <div className="border-b border-white/10 text-xs text-white/60 py-1.5 hidden md:block">
         <div className="container flex justify-between items-center">
           <span>🚚 Доставка по всей России · Самовывоз в Астрахани</span>
-          <span>📞 8 (800) 123-45-67 · Бесплатно</span>
+          <span>📞 +7 (985) 750 22 62</span>
         </div>
       </div>
 
@@ -35,9 +35,7 @@ export default function Header({ page, onNavigate, search, onSearch }: HeaderPro
             🐟
           </div>
           <div className="text-left">
-            <div className="font-oswald font-bold text-xl text-white leading-none tracking-wide group-hover:text-sand transition-colors">
-              РыбаЛов
-            </div>
+            <div className="font-oswald font-bold text-xl text-white leading-none tracking-wide group-hover:text-sand transition-colors">рыбнаятема.рф</div>
             <div className="text-[10px] text-white/50 tracking-widest uppercase">магазин рыбы</div>
           </div>
         </button>
