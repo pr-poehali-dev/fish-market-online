@@ -1,28 +1,67 @@
-
+import { useState } from 'react';
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
+import HomePage from '@/pages/HomePage';
+import CatalogPage from '@/pages/CatalogPage';
+import CartPage from '@/pages/CartPage';
+import CheckoutPage from '@/pages/CheckoutPage';
+import AccountPage from '@/pages/AccountPage';
 
-const queryClient = new QueryClient();
+type Page = 'home' | 'catalog' | 'cart' | 'checkout' | 'account';
+
+function AppContent() {
+  const [page, setPage] = useState<Page>('home');
+  const [search, setSearch] = useState('');
+
+  function handleNavigate(p: string) {
+    setPage(p as Page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function handleSearch(v: string) {
+    setSearch(v);
+    if (v.trim()) {
+      setPage('catalog');
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header
+        page={page}
+        onNavigate={handleNavigate}
+        search={search}
+        onSearch={handleSearch}
+      />
+      <main className="flex-1">
+        {page === 'home' && (
+          <HomePage search={search} onSearch={handleSearch} onNavigate={handleNavigate} />
+        )}
+        {page === 'catalog' && (
+          <CatalogPage search={search} onSearch={handleSearch} />
+        )}
+        {page === 'cart' && (
+          <CartPage onNavigate={handleNavigate} />
+        )}
+        {page === 'checkout' && (
+          <CheckoutPage onNavigate={handleNavigate} />
+        )}
+        {page === 'account' && (
+          <AccountPage onNavigate={handleNavigate} />
+        )}
+      </main>
+      <Footer onNavigate={handleNavigate} />
+    </div>
+  );
+}
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <TooltipProvider>
+    <Toaster />
+    <AppContent />
+  </TooltipProvider>
 );
 
 export default App;
