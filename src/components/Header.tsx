@@ -36,7 +36,7 @@ export default function Header({ page, onNavigate, search, onSearch }: HeaderPro
           </div>
           <div className="text-left">
             <div className="font-oswald font-bold text-xl text-white leading-none tracking-wide group-hover:text-sand transition-colors">рыбнаятема.рф</div>
-            <div className="text-[10px] text-white/50 tracking-widest uppercase">магазин рыбы</div>
+            <div className="text-[10px] text-white/50 tracking-widest uppercase">магазин рыбы и снеков</div>
           </div>
         </button>
 
