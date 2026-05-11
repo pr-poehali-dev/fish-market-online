@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Product, TYPES } from '@/data/products';
+import { Product } from '@/data/products';
 import { useStore } from '@/store/useStore';
 import Icon from '@/components/ui/icon';
 
@@ -9,13 +9,19 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, index = 0 }: ProductCardProps) {
-  const { addToCart } = useStore();
+  const { addToCart, toggleFavorite, isFavorite, user } = useStore();
   const [added, setAdded] = useState(false);
+  const fav = isFavorite(product.id);
 
   function handleAdd() {
     addToCart(product);
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
+  }
+
+  function handleFav(e: React.MouseEvent) {
+    e.stopPropagation();
+    toggleFavorite(product.id);
   }
 
   return (
@@ -30,10 +36,9 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
-        {/* Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
-        {/* Badges */}
+        {/* Badges left */}
         <div className="absolute top-2 left-2 flex flex-col gap-1">
           {product.badge && (
             <span className="px-2 py-0.5 rounded text-[11px] font-bold text-white shadow"
@@ -49,8 +54,22 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
           )}
         </div>
 
-        {/* Type badge */}
-        <div className="absolute top-2 right-2">
+        {/* Top-right: favorite + type */}
+        <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
+          {/* Favorite button */}
+          {user && (
+            <button
+              onClick={handleFav}
+              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all shadow ${
+                fav
+                  ? 'bg-rose-500 text-white scale-110'
+                  : 'bg-white/80 text-muted-foreground hover:bg-white hover:text-rose-500'
+              }`}
+              title={fav ? 'Убрать из избранного' : 'В избранное'}
+            >
+              <Icon name="Heart" size={13} />
+            </button>
+          )}
           <span className={`px-2 py-0.5 rounded text-[11px] font-medium text-white/90 ${
             product.type === 'smoked' ? 'bg-gray-700/70' : 'bg-green-700/70'
           }`}>
@@ -69,7 +88,6 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
           {product.description}
         </p>
 
-        {/* Meta */}
         <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
           <span className="flex items-center gap-1">
             <Icon name="Weight" size={12} fallback="Scale" />
@@ -81,7 +99,6 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
           </span>
         </div>
 
-        {/* Price + button */}
         <div className="mt-auto flex items-center justify-between gap-2">
           <div>
             <span className="font-oswald font-bold text-2xl text-ocean-deep">
@@ -92,9 +109,7 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
           <button
             onClick={handleAdd}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-              added
-                ? 'bg-green-600 text-white scale-95'
-                : 'text-white hover:brightness-110 active:scale-95'
+              added ? 'bg-green-600 text-white scale-95' : 'text-white hover:brightness-110 active:scale-95'
             }`}
             style={!added ? { background: 'linear-gradient(135deg, #1a4a6e, #2d6a9f)' } : {}}
           >

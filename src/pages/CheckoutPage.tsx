@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useStore } from '@/store/useStore';
+import { useStore, PROMO_CODES, PromoCode } from '@/store/useStore';
 import Icon from '@/components/ui/icon';
 
 interface CheckoutPageProps {
@@ -7,12 +7,14 @@ interface CheckoutPageProps {
 }
 
 export default function CheckoutPage({ onNavigate }: CheckoutPageProps) {
-  const { cart, cartTotal, user, placeOrder } = useStore();
+  const { cart, cartTotal, user, placeOrder, applyPromo, calcDiscount } = useStore();
+
+  const defaultAddr = (user?.addresses || []).find(a => a.isDefault);
 
   const [form, setForm] = useState({
     name: user?.name || '',
     phone: user?.phone || '',
-    address: user?.address || '',
+    address: defaultAddr?.value || user?.address || '',
     comment: '',
     delivery: 'courier',
     payment: 'card',
@@ -20,8 +22,31 @@ export default function CheckoutPage({ onNavigate }: CheckoutPageProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [orderId, setOrderId] = useState('');
+  const [bonusEarnedFinal, setBonusEarnedFinal] = useState(0);
 
-  const delivery = cartTotal >= 2000 ? 0 : 350;
+  // Promo
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
+  const [promoError, setPromoError] = useState('');
+
+  // Bonus spend
+  const maxBonusSpend = Math.min(user?.bonusPoints || 0, Math.floor(cartTotal * 0.3));
+  const [bonusSpend, setBonusSpend] = useState(0);
+
+  const discount = calcDiscount(appliedPromo, bonusSpend, cartTotal);
+  const deliveryCost = cartTotal >= 2000 ? 0 : 350;
+  const finalTotal = Math.max(0, cartTotal - discount) + deliveryCost;
+
+  function handleApplyPromo() {
+    const promo = applyPromo(promoInput.trim());
+    if (promo) {
+      setAppliedPromo(promo);
+      setPromoError('');
+    } else {
+      setPromoError('Промокод не найден или недействителен');
+      setAppliedPromo(null);
+    }
+  }
 
   function validate() {
     const e: Record<string, string> = {};
@@ -35,10 +60,10 @@ export default function CheckoutPage({ onNavigate }: CheckoutPageProps) {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length) { setErrors(errs); return; }
-
-    const order = placeOrder(form.address, form.comment);
+    const order = placeOrder(form.address, form.comment, appliedPromo, bonusSpend);
     if (order) {
       setOrderId(order.id);
+      setBonusEarnedFinal(order.bonusEarned);
     } else {
       setOrderId(`RL-${Date.now()}`);
     }
@@ -50,11 +75,9 @@ export default function CheckoutPage({ onNavigate }: CheckoutPageProps) {
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 py-24">
         <div className="text-7xl mb-6">🛒</div>
         <h2 className="font-oswald font-bold text-3xl mb-3">Корзина пуста</h2>
-        <button
-          onClick={() => onNavigate('catalog')}
+        <button onClick={() => onNavigate('catalog')}
           className="px-7 py-3 rounded-xl font-bold text-white"
-          style={{ background: 'linear-gradient(135deg, #1a4a6e, #2d6a9f)' }}
-        >
+          style={{ background: 'linear-gradient(135deg, #1a4a6e, #2d6a9f)' }}>
           В каталог
         </button>
       </div>
@@ -68,33 +91,34 @@ export default function CheckoutPage({ onNavigate }: CheckoutPageProps) {
           style={{ background: 'linear-gradient(135deg, #1a4a6e, #2d6a9f)' }}>
           ✓
         </div>
-        <h2 className="font-oswald font-bold text-4xl text-foreground mb-3 animate-fade-in">
-          Заказ оформлен!
-        </h2>
+        <h2 className="font-oswald font-bold text-4xl text-foreground mb-3 animate-fade-in">Заказ оформлен!</h2>
         <p className="text-muted-foreground mb-2 animate-fade-in delay-100">
-          Ваш заказ <span className="font-semibold text-foreground">#{orderId}</span> принят
+          Заказ <span className="font-semibold text-foreground">#{orderId}</span> принят
         </p>
+        {bonusEarnedFinal > 0 && (
+          <p className="text-amber-600 font-semibold text-sm mb-2 animate-fade-in delay-200">
+            🎁 Начислено {bonusEarnedFinal} бонусных баллов
+          </p>
+        )}
         <p className="text-sm text-muted-foreground mb-8 animate-fade-in delay-200">
-          Мы свяжемся с вами по телефону {form.phone} для подтверждения
+          Свяжемся по телефону {form.phone} для подтверждения
         </p>
         <div className="flex gap-3 flex-wrap justify-center animate-fade-in delay-300">
-          <button
-            onClick={() => onNavigate('account')}
-            className="px-6 py-3 rounded-xl font-bold text-white transition-all hover:brightness-110"
-            style={{ background: 'linear-gradient(135deg, #1a4a6e, #2d6a9f)' }}
-          >
+          <button onClick={() => onNavigate('account')}
+            className="px-6 py-3 rounded-xl font-bold text-white hover:brightness-110"
+            style={{ background: 'linear-gradient(135deg, #1a4a6e, #2d6a9f)' }}>
             Мои заказы
           </button>
-          <button
-            onClick={() => onNavigate('catalog')}
-            className="px-6 py-3 rounded-xl font-semibold border border-border hover:bg-secondary transition-all"
-          >
+          <button onClick={() => onNavigate('catalog')}
+            className="px-6 py-3 rounded-xl font-semibold border border-border hover:bg-secondary transition-all">
             Продолжить покупки
           </button>
         </div>
       </div>
     );
   }
+
+  const savedAddresses = user?.addresses || [];
 
   return (
     <div className="min-h-screen py-8">
@@ -109,7 +133,8 @@ export default function CheckoutPage({ onNavigate }: CheckoutPageProps) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Form */}
           <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6">
-            {/* Contact */}
+
+            {/* 1. Contacts */}
             <div className="bg-card rounded-xl border border-border p-6">
               <h2 className="font-oswald font-bold text-xl mb-5 flex items-center gap-2">
                 <span className="w-7 h-7 rounded-full flex items-center justify-center text-sm text-white font-bold"
@@ -119,34 +144,24 @@ export default function CheckoutPage({ onNavigate }: CheckoutPageProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1.5">Имя и фамилия *</label>
-                  <input
-                    type="text"
-                    value={form.name}
+                  <input type="text" value={form.name}
                     onChange={e => setForm({ ...form, name: e.target.value })}
                     placeholder="Иван Иванов"
-                    className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-all bg-background ${
-                      errors.name ? 'border-destructive' : 'border-input'
-                    }`}
-                  />
+                    className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background ${errors.name ? 'border-destructive' : 'border-input'}`} />
                   {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1.5">Телефон *</label>
-                  <input
-                    type="tel"
-                    value={form.phone}
+                  <input type="tel" value={form.phone}
                     onChange={e => setForm({ ...form, phone: e.target.value })}
                     placeholder="+7 (999) 999-99-99"
-                    className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-all bg-background ${
-                      errors.phone ? 'border-destructive' : 'border-input'
-                    }`}
-                  />
+                    className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background ${errors.phone ? 'border-destructive' : 'border-input'}`} />
                   {errors.phone && <p className="text-xs text-destructive mt-1">{errors.phone}</p>}
                 </div>
               </div>
             </div>
 
-            {/* Delivery */}
+            {/* 2. Delivery */}
             <div className="bg-card rounded-xl border border-border p-6">
               <h2 className="font-oswald font-bold text-xl mb-5 flex items-center gap-2">
                 <span className="w-7 h-7 rounded-full flex items-center justify-center text-sm text-white font-bold"
@@ -158,15 +173,9 @@ export default function CheckoutPage({ onNavigate }: CheckoutPageProps) {
                   { id: 'courier', label: 'Курьером', desc: 'До двери', icon: '🚚' },
                   { id: 'pickup', label: 'Самовывоз', desc: 'г. Астрахань', icon: '🏪' },
                 ].map(d => (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() => setForm({ ...form, delivery: d.id })}
-                    className={`flex items-center gap-3 p-4 rounded-lg border-2 text-left transition-all ${
-                      form.delivery === d.id ? 'border-ocean-deep' : 'border-border hover:border-muted-foreground'
-                    }`}
-                    style={form.delivery === d.id ? { borderColor: '#1a4a6e', background: 'rgba(26,74,110,0.05)' } : {}}
-                  >
+                  <button key={d.id} type="button" onClick={() => setForm({ ...form, delivery: d.id })}
+                    className={`flex items-center gap-3 p-4 rounded-lg border-2 text-left transition-all ${form.delivery === d.id ? 'border-ocean-deep' : 'border-border hover:border-muted-foreground'}`}
+                    style={form.delivery === d.id ? { borderColor: '#1a4a6e', background: 'rgba(26,74,110,0.05)' } : {}}>
                     <span className="text-2xl">{d.icon}</span>
                     <div>
                       <div className="font-semibold text-sm">{d.label}</div>
@@ -175,101 +184,191 @@ export default function CheckoutPage({ onNavigate }: CheckoutPageProps) {
                   </button>
                 ))}
               </div>
+
+              {/* Saved addresses */}
+              {savedAddresses.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Сохранённые адреса:</p>
+                  <div className="space-y-2">
+                    {savedAddresses.map(addr => (
+                      <button key={addr.id} type="button"
+                        onClick={() => setForm({ ...form, address: addr.value })}
+                        className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all text-sm ${
+                          form.address === addr.value
+                            ? 'border-ocean-deep bg-ocean-deep/5'
+                            : 'border-border hover:border-muted-foreground'
+                        }`}>
+                        <span className="text-base">📍</span>
+                        <div className="flex-1 min-w-0">
+                          <span className="font-medium">{addr.label}</span>
+                          {addr.isDefault && (
+                            <span className="ml-2 text-[11px] text-muted-foreground">(по умолчанию)</span>
+                          )}
+                          <p className="text-xs text-muted-foreground truncate">{addr.value}</p>
+                        </div>
+                        {form.address === addr.value && <Icon name="Check" size={14} className="text-ocean-deep flex-shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">или введите новый адрес:</p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium mb-1.5">Адрес доставки *</label>
-                <input
-                  type="text"
-                  value={form.address}
+                <input type="text" value={form.address}
                   onChange={e => setForm({ ...form, address: e.target.value })}
                   placeholder="Город, улица, дом, квартира"
-                  className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-all bg-background ${
-                    errors.address ? 'border-destructive' : 'border-input'
-                  }`}
-                />
+                  className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background ${errors.address ? 'border-destructive' : 'border-input'}`} />
                 {errors.address && <p className="text-xs text-destructive mt-1">{errors.address}</p>}
               </div>
             </div>
 
-            {/* Payment */}
+            {/* 3. Payment */}
             <div className="bg-card rounded-xl border border-border p-6">
               <h2 className="font-oswald font-bold text-xl mb-5 flex items-center gap-2">
                 <span className="w-7 h-7 rounded-full flex items-center justify-center text-sm text-white font-bold"
                   style={{ background: '#1a4a6e' }}>3</span>
                 Оплата
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
                 {[
                   { id: 'card', label: 'Картой онлайн', icon: '💳' },
                   { id: 'cash', label: 'Наличными', icon: '💵' },
                 ].map(p => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setForm({ ...form, payment: p.id })}
-                    className={`flex items-center gap-3 p-4 rounded-lg border-2 text-left transition-all ${
-                      form.payment === p.id ? 'border-ocean-deep' : 'border-border hover:border-muted-foreground'
-                    }`}
-                    style={form.payment === p.id ? { borderColor: '#1a4a6e', background: 'rgba(26,74,110,0.05)' } : {}}
-                  >
+                  <button key={p.id} type="button" onClick={() => setForm({ ...form, payment: p.id })}
+                    className={`flex items-center gap-3 p-4 rounded-lg border-2 text-left transition-all ${form.payment === p.id ? 'border-ocean-deep' : 'border-border hover:border-muted-foreground'}`}
+                    style={form.payment === p.id ? { borderColor: '#1a4a6e', background: 'rgba(26,74,110,0.05)' } : {}}>
                     <span className="text-2xl">{p.icon}</span>
                     <span className="font-semibold text-sm">{p.label}</span>
                   </button>
                 ))}
               </div>
+
+              {/* Promo code */}
+              <div className="mb-4 p-4 rounded-xl border border-border bg-muted/30">
+                <p className="text-sm font-medium mb-2 flex items-center gap-1.5">
+                  <span>🎟</span> Промокод
+                </p>
+                <div className="flex gap-2">
+                  <input type="text" value={promoInput}
+                    onChange={e => { setPromoInput(e.target.value.toUpperCase()); setPromoError(''); }}
+                    placeholder="Введите промокод"
+                    className="flex-1 px-3 py-2 rounded-lg border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background font-mono" />
+                  <button type="button" onClick={handleApplyPromo}
+                    className="px-4 py-2 rounded-lg text-sm font-bold text-white hover:brightness-110"
+                    style={{ background: 'linear-gradient(135deg, #1a4a6e, #2d6a9f)' }}>
+                    Применить
+                  </button>
+                </div>
+                {promoError && <p className="text-xs text-destructive mt-1.5">{promoError}</p>}
+                {appliedPromo && (
+                  <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-green-50 border border-green-200">
+                    <Icon name="Check" size={14} className="text-green-600" />
+                    <span className="text-sm text-green-700 font-medium">{appliedPromo.label} применена</span>
+                    <button type="button" onClick={() => { setAppliedPromo(null); setPromoInput(''); }}
+                      className="ml-auto text-green-600 hover:text-green-800">
+                      <Icon name="X" size={14} />
+                    </button>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Попробуйте: RYBA10 · FIRST15 · FISH200
+                </p>
+              </div>
+
+              {/* Bonus spend */}
+              {user && (user.bonusPoints || 0) > 0 && (
+                <div className="mb-4 p-4 rounded-xl border border-border bg-muted/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium flex items-center gap-1.5">
+                      <span>🎁</span> Бонусные баллы
+                    </p>
+                    <span className="text-sm font-bold text-amber-600">
+                      {user.bonusPoints} б. = {user.bonusPoints} ₽
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input type="range" min={0} max={maxBonusSpend} value={bonusSpend}
+                      onChange={e => setBonusSpend(Number(e.target.value))}
+                      className="flex-1" />
+                    <span className="text-sm font-bold w-20 text-right" style={{ color: '#1a4a6e' }}>
+                      −{bonusSpend} ₽
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Списать от 0 до {maxBonusSpend} ₽ (до 30% от суммы)
+                  </p>
+                </div>
+              )}
+
+              {/* Comment */}
               <div>
                 <label className="block text-sm font-medium mb-1.5">Комментарий к заказу</label>
-                <textarea
-                  value={form.comment}
+                <textarea value={form.comment}
                   onChange={e => setForm({ ...form, comment: e.target.value })}
                   placeholder="Особые пожелания, время доставки..."
                   rows={3}
-                  className="w-full px-3 py-2.5 rounded-lg border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-all bg-background resize-none"
-                />
+                  className="w-full px-3 py-2.5 rounded-lg border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background resize-none" />
               </div>
             </div>
 
-            <button
-              type="submit"
-              className="w-full py-4 rounded-xl font-bold text-white text-lg transition-all hover:brightness-110 active:scale-[0.99] shadow-lg"
-              style={{ background: 'linear-gradient(135deg, #1a4a6e, #2d6a9f)' }}
-            >
+            <button type="submit"
+              className="w-full py-4 rounded-xl font-bold text-white text-lg hover:brightness-110 active:scale-[0.99] shadow-lg"
+              style={{ background: 'linear-gradient(135deg, #1a4a6e, #2d6a9f)' }}>
               Подтвердить заказ
             </button>
           </form>
 
-          {/* Order summary */}
+          {/* Summary */}
           <div className="lg:col-span-1">
             <div className="bg-card rounded-xl border border-border p-6 sticky top-24">
               <h3 className="font-oswald font-bold text-xl mb-4">Ваш заказ</h3>
               <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
                 {cart.map(item => (
                   <div key={item.product.id} className="flex gap-3">
-                    <img
-                      src={item.product.image}
-                      alt={item.product.name}
-                      className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
-                    />
+                    <img src={item.product.image} alt={item.product.name}
+                      className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{item.product.name}</p>
-                      <p className="text-xs text-muted-foreground">{item.quantity} шт × {item.product.price} ₽</p>
+                      <p className="text-xs text-muted-foreground">{item.quantity} × {item.product.price} ₽</p>
                     </div>
                     <span className="text-sm font-semibold whitespace-nowrap">{item.product.price * item.quantity} ₽</span>
                   </div>
                 ))}
               </div>
-              <div className="border-t border-border pt-4 space-y-2">
-                <div className="flex justify-between text-sm">
+              <div className="border-t border-border pt-4 space-y-2 text-sm">
+                <div className="flex justify-between">
                   <span className="text-muted-foreground">Товары</span>
                   <span>{cartTotal} ₽</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                {appliedPromo && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Промокод {appliedPromo.code}</span>
+                    <span>−{appliedPromo.type === 'percent'
+                      ? Math.round(cartTotal * appliedPromo.discount / 100)
+                      : appliedPromo.discount} ₽</span>
+                  </div>
+                )}
+                {bonusSpend > 0 && (
+                  <div className="flex justify-between text-amber-600">
+                    <span>Бонусы</span>
+                    <span>−{bonusSpend} ₽</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
                   <span className="text-muted-foreground">Доставка</span>
-                  <span className={delivery === 0 ? 'text-green-600' : ''}>{delivery === 0 ? 'Бесплатно' : `${delivery} ₽`}</span>
+                  <span className={deliveryCost === 0 ? 'text-green-600' : ''}>{deliveryCost === 0 ? 'Бесплатно' : `${deliveryCost} ₽`}</span>
                 </div>
                 <div className="flex justify-between font-oswald font-bold text-xl pt-2 border-t border-border">
                   <span>Итого</span>
-                  <span style={{ color: '#1a4a6e' }}>{cartTotal + delivery} ₽</span>
+                  <span style={{ color: '#1a4a6e' }}>{finalTotal} ₽</span>
                 </div>
+                {user && (
+                  <p className="text-xs text-amber-600 text-center pt-1">
+                    🎁 За заказ начислим ~{Math.floor(Math.max(0, cartTotal - discount) * 0.05)} бонусов
+                  </p>
+                )}
               </div>
             </div>
           </div>
