@@ -23,17 +23,14 @@ export default function Footer({ onNavigate }: FooterProps) {
               </div>
               <div>
                 <div className="font-oswald font-bold text-xl text-white">
-                  РыбаЛов
+                  Рыбнаятема
                 </div>
                 <div className="text-[10px] text-white/40 tracking-widest uppercase">
-                  магазин рыбы
+                  магазин рыбы снеков
                 </div>
               </div>
             </div>
-            <p className="text-white/50 text-sm leading-relaxed">
-              Натуральная вяленая и копчёная рыба из Астрахани. Традиционные
-              рецепты, свежий улов.
-            </p>
+            <p className="text-white/50 text-sm leading-relaxed"></p>
           </div>
 
           {/* Catalog */}
