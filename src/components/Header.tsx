@@ -18,7 +18,7 @@ export default function Header({ page, onNavigate, search, onSearch }: HeaderPro
       {/* Top strip */}
       <div className="border-b border-white/10 text-xs text-white/60 py-1.5 hidden md:block">
         <div className="container flex justify-between items-center">
-          <span>🚚 Доставка по всей России · Самовывоз в Астрахани</span>
+          <span>🚚 Доставка по всей России </span>
           <span>📞 +7 (985) 750 22 62</span>
         </div>
       </div>
