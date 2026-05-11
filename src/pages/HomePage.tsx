@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { products, categories } from '@/data/products';
+import { useMemo } from 'react';
+import { products } from '@/data/products';
 import ProductCard from '@/components/ProductCard';
 import Icon from '@/components/ui/icon';
 
@@ -11,24 +11,60 @@ interface HomePageProps {
 
 const BANNER_IMG = 'https://cdn.poehali.dev/projects/0a48bec4-ad72-4dec-954d-2e8af7b2e423/files/141eb813-c818-444b-b5ff-4e7dcbffede1.jpg';
 
+interface ProductGroup {
+  id: string;
+  label: string;
+  icon: string;
+  accent: string;
+  bg: string;
+  items: typeof products;
+}
+
 export default function HomePage({ search, onSearch, onNavigate }: HomePageProps) {
-  const [activeCategory, setActiveCategory] = useState('all');
+  const searchFiltered = useMemo(() => {
+    if (!search.trim()) return null;
+    const q = search.toLowerCase();
+    return products.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.species.toLowerCase().includes(q) ||
+      p.description.toLowerCase().includes(q)
+    );
+  }, [search]);
 
-  const filtered = useMemo(() => {
-    let list = products;
-    if (activeCategory !== 'all') list = list.filter(p => p.type === activeCategory);
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        p.species.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q)
-      );
-    }
-    return list;
-  }, [activeCategory, search]);
-
-  const newProducts = products.filter(p => p.isNew).slice(0, 4);
+  const groups: ProductGroup[] = [
+    {
+      id: 'hits',
+      label: 'Хиты продаж',
+      icon: '🏆',
+      accent: '#d4a96a',
+      bg: 'linear-gradient(135deg, #3d2410 0%, #5c3a1e 100%)',
+      items: products.filter(p => p.badge === 'Хит' || p.reviews >= 70).slice(0, 4),
+    },
+    {
+      id: 'dried',
+      label: 'Вяленая рыба',
+      icon: '🌿',
+      accent: '#4a8c5c',
+      bg: 'linear-gradient(135deg, #1e3d2a 0%, #2d5c3e 100%)',
+      items: products.filter(p => p.type === 'dried').slice(0, 4),
+    },
+    {
+      id: 'smoked',
+      label: 'Копчёная рыба',
+      icon: '🔥',
+      accent: '#c0622a',
+      bg: 'linear-gradient(135deg, #3d1e0a 0%, #5c2e10 100%)',
+      items: products.filter(p => p.type === 'smoked').slice(0, 4),
+    },
+    {
+      id: 'new',
+      label: 'Новинки',
+      icon: '✨',
+      accent: '#2d6a9f',
+      bg: 'linear-gradient(135deg, #0f2a45 0%, #1a4a6e 100%)',
+      items: products.filter(p => p.isNew).slice(0, 4),
+    },
+  ];
 
   return (
     <div>
@@ -112,102 +148,103 @@ export default function HomePage({ search, onSearch, onNavigate }: HomePageProps
         </div>
       </div>
 
-      {/* CATALOG SECTION (main focus) */}
+      {/* PRODUCT GROUPS */}
       <section id="catalog-section" className="py-12 scale-pattern">
         <div className="container">
-          {/* Section header */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
             <div>
               <div className="text-xs font-medium uppercase tracking-widest mb-2" style={{ color: '#b8895a' }}>
                 наш ассортимент
               </div>
               <h2 className="font-oswald font-bold text-3xl md:text-4xl text-foreground">
-                Каталог товаров
+                Товары по категориям
               </h2>
             </div>
             <button
               onClick={() => onNavigate('catalog')}
               className="flex items-center gap-2 text-sm font-medium text-ocean-deep hover:text-ocean-mid transition-colors"
             >
-              Расширенный каталог с фильтрами
+              Весь каталог с фильтрами
               <Icon name="ArrowRight" size={16} />
             </button>
           </div>
 
-          {/* Category tabs */}
-          <div className="flex flex-wrap gap-2 mb-8">
-            {categories.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                  activeCategory === cat.id
-                    ? 'text-white shadow-md'
-                    : 'bg-white/80 text-muted-foreground hover:bg-white border border-border'
-                }`}
-                style={activeCategory === cat.id ? { background: 'linear-gradient(135deg, #1a4a6e, #2d6a9f)' } : {}}
-              >
-                <span>{cat.icon}</span>
-                {cat.label}
-                <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${
-                  activeCategory === cat.id ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'
-                }`}>
-                  {cat.count}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {/* Search result info */}
-          {search && (
-            <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
-              <Icon name="Search" size={14} />
-              Поиск: «{search}» — найдено {filtered.length} товаров
-              <button onClick={() => onSearch('')} className="ml-2 text-destructive hover:underline">
-                Сбросить
-              </button>
-            </div>
-          )}
-
-          {/* Products grid */}
-          {filtered.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {filtered.map((product, i) => (
-                <ProductCard key={product.id} product={product} index={i} />
-              ))}
+          {/* Search result — показываем вместо групп */}
+          {searchFiltered ? (
+            <div>
+              <div className="flex items-center gap-2 mb-6 text-sm text-muted-foreground">
+                <Icon name="Search" size={14} />
+                Поиск: «{search}» — найдено {searchFiltered.length} товаров
+                <button onClick={() => onSearch('')} className="ml-2 text-destructive hover:underline">
+                  Сбросить
+                </button>
+              </div>
+              {searchFiltered.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                  {searchFiltered.map((product, i) => (
+                    <ProductCard key={product.id} product={product} index={i} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-20">
+                  <div className="text-5xl mb-4">🐟</div>
+                  <p className="text-muted-foreground">Ничего не найдено по запросу «{search}»</p>
+                  <button onClick={() => onSearch('')} className="mt-3 text-sm text-ocean-deep hover:underline">
+                    Сбросить поиск
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
-            <div className="text-center py-20">
-              <div className="text-5xl mb-4">🐟</div>
-              <p className="text-muted-foreground">Ничего не найдено по запросу «{search}»</p>
-              <button onClick={() => onSearch('')} className="mt-3 text-sm text-ocean-deep hover:underline">
-                Сбросить поиск
-              </button>
+            /* Groups */
+            <div className="space-y-14">
+              {groups.map((group, gi) => (
+                <div key={group.id} className="animate-fade-in" style={{ animationDelay: `${gi * 0.1}s`, opacity: 0, animationFillMode: 'forwards' }}>
+                  {/* Group header */}
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-3">
+                      {/* Accent bar + icon */}
+                      <div className="flex items-center justify-center w-10 h-10 rounded-xl text-xl shadow-sm flex-shrink-0"
+                        style={{ background: group.bg }}>
+                        {group.icon}
+                      </div>
+                      <div>
+                        <h3 className="font-oswald font-bold text-2xl text-foreground leading-tight">
+                          {group.label}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">{group.items.length} товара в группе</p>
+                      </div>
+                      {/* Accent line */}
+                      <div className="hidden md:block w-16 h-0.5 ml-2 rounded-full"
+                        style={{ background: group.accent }} />
+                    </div>
+                    <button
+                      onClick={() => onNavigate('catalog')}
+                      className="flex items-center gap-1 text-xs font-medium transition-colors hover:opacity-70 flex-shrink-0"
+                      style={{ color: group.accent }}
+                    >
+                      Все
+                      <Icon name="ChevronRight" size={14} />
+                    </button>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="h-px mb-6 rounded-full"
+                    style={{ background: `linear-gradient(90deg, ${group.accent}40, transparent)` }} />
+
+                  {/* Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                    {group.items.map((product, i) => (
+                      <ProductCard key={product.id} product={product} index={i} />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
       </section>
-
-      {/* New arrivals */}
-      {newProducts.length > 0 && (
-        <section className="py-12 bg-cream">
-          <div className="container">
-            <div className="flex items-end justify-between mb-8">
-              <div>
-                <div className="text-xs font-medium uppercase tracking-widest mb-2" style={{ color: '#b8895a' }}>
-                  только появились
-                </div>
-                <h2 className="font-oswald font-bold text-3xl text-foreground">Новинки</h2>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {newProducts.map((product, i) => (
-                <ProductCard key={product.id} product={product} index={i} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Banner CTA */}
       <section className="py-16 ocean-bg">
