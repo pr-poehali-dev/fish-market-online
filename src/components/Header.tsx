@@ -30,10 +30,8 @@ export default function Header({ page, onNavigate, search, onSearch }: HeaderPro
           onClick={() => onNavigate('home')}
           className="flex items-center gap-2.5 flex-shrink-0 group"
         >
-          <div className="w-10 h-10 rounded-full flex items-center justify-center text-2xl shadow-md"
-            style={{ background: 'linear-gradient(135deg, #d4a96a, #b8895a)' }}>
-            🐟
-          </div>
+          <div className="w-10 h-10 flex items-center justify-center text-2xl shadow-md rounded-sm px-0 bg-transparent mx-0"
+            style={{ background: 'linear-gradient(135deg, #d4a96a, #b8895a)' }}></div>
           <div className="text-left">
             <div className="font-oswald font-bold text-xl text-white leading-none tracking-wide group-hover:text-sand transition-colors">рыбнаятема.рф</div>
             <div className="text-[10px] text-white/50 tracking-widest uppercase">магазин рыбы и снеков</div>
